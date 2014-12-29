@@ -1,0 +1,36 @@
+
+
+
+* Algorithm summary
+** Terms
+   1. Integrand \( f \)
+   2. LB \( a \), UB \( b \)
+   3. \( \epsilon \) absolute tolerance, \( \epsilon \) relative tolerance
+   4. =w= arrays are abcissae weights
+
+** Prep stage
+   1. Define =half_length=, =abs_half_length=,  =center=,  =f_center= as intuitive
+   2. Make sure \( \epsilon > 0 \), \( \epsilon > 0.5 e -28 \)
+
+** 10 point formula
+   1. For \( k = 0..5 \)
+   2. 
+
+
+* Summary 2
+
+  1. At each iteration, we use =n= points for evaluation, and =2n+1= points for error.
+  2. At the next iteration, use the =2n+1= points for error, and =2(2n+1) + 1= points for error
+  3. Construct function evaluations for all center \( \pm \) =x1= and =x2= abcissa
+
+
+* =res10=
+  1. Start with 0
+  2. res10 += w10 * (fval1_k + fval2_k)
+
+* =res21=
+  
+
+
+  1. =fv1= function evaluations at center + abcissa
+  2. =fv2= function evaluations at center - abcissa
