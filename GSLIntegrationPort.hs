@@ -270,3 +270,97 @@ w87b = [  0.000274145563762072350016527092881,
           0.037361073762679023410321241766599
        ]
 
+--------------------------------------------------------------------------------
+
+
+
+data GKStruct = GKStruct {
+   result :: Double
+ , abserr :: Double
+ , resabs :: Double
+ , resasc :: Double  
+}
+
+integration_qk :: 
+     Int        -- ^ n 
+ ->  [Double]   -- ^ xgk 
+ ->  [Double]   -- ^ wg 
+ ->  [Double]   -- ^ wgk 
+ ->  [Double]   -- ^ fv1 
+ ->  [Double]   -- ^ fv2
+ ->  (Double -> Double) -- ^ f
+ ->  Double     -- ^ a
+ ->  Double     -- ^ b
+ ->  GKStruct
+integration_qk n xgk wg wgk fv1 fv2 f a b = gsk
+  where
+    center          = 0.5 * (a + b)
+    half_length     = 0.5 * (b - a)
+    abs_half_length = abs (half_length)
+    f_center        = f center
+
+    nd              = fromIntegral n
+
+    idx             = round $ (nd / 2.0) - 1      :: Int
+    jmax_1          = (nd - 1.0) / 2.0
+    jmax_2          = nd / 2.0
+
+    jvec_1 = takeWhile ( < jmax_1) [0..] :: [Int]
+    jvec_2 = takeWhile ( < jmax_2) [0..] :: [Int]
+    
+    jtw_vec  = map (\j -> j * 2 + 1) jvec_1
+    jtwm1_vec = map (\j -> j * 2) jvec_2
+
+
+    -- 
+    abcissa_j1 = map (\i -> half_length * (xgk !! i )) jtw_vec
+    abcissa_j2 = map (\i -> half_length * (xgk !! i )) jwm_vec
+    fv1_j1    =  map (\x -> f (center - x)) abcissa_j1
+    fv2_j1    =  map (\x -> f (center + x)) abcissa_j1
+    fv1_j2    =  map (\x -> f (center - x)) abcissa_j2
+    fv2_j2    =  map (\x -> f (center + x)) abcissa_j2
+    
+    fsum_j1   = zip (+) fv1_j1 fv2_j1
+    fsum_j2   = zip (+) fv1_j2 fv2_j2
+
+    result_gauss_n  = if (mod n 2) == 0 then (f_center * (wg !! idx)) else 0.0
+    result_gauss_j1 = dotprod (map (wg !! ) jvec_1) fsum_j1
+    result_gauss    = result_gauss_n + result_gauss_j1
+
+    konrod_fc = f_center * (wgk !! (n-1))
+    konrod_j1 = dotprod (map (wgk !!) jtw_vec) fsum_j1
+    konrod_j2 = dotprod (map (wgk !!) jtwm1_vec) fsum_j2
+    konrod    = konrod_fc + konrod_j1 + konrod_j2
+    result_konrod = konrod * half_length
+
+    abs_fc = abs result_konrod_fc
+    abs_j1 = dotprod (map (wgk !!) jtw_vec)  (abssum fv1_j1 fv2_j1)
+    abs_j2 = dotprod (map (wgk !!) jtwm_vec) (abssum fv1_j2 fv2_j2)
+    result_abs    = abs_half_length * (abs_fc + abs_j1 + abs_j2)
+    
+
+    -- need to figure out the indexing to get asc right
+    mean   = 0.5 * result_konrod
+    asc_fc = (wgk !! (n-1)) * (abs (fcenter - mean))
+    jn1    = [0..(n-2)]
+    
+
+
+abssum :: [Double] -> [Double] -> [Double]
+abssum xlist ylist = zipWith (\x y -> (abs x) + (abs y)) xlist ylist
+
+
+-- qags integration
+-- port of GSL's facillities
+
+-- qags ::    (Double -> Double)  -- ^ integrand
+--         -> Double              -- ^ lower bound
+--         -> Double              -- ^ upper bound
+--         -> Double              -- ^ epsabs
+--         -> Double              -- ^ epsrel
+--         -> Double              -- ^ limit
+--         -> (Double -> Double)  -- ^ gsl_integration_rule
+--         -> (Double, Double)    -- ^ (result, error)
+-- qags f a b epsabs epsrel limit gsl_integration_rule = (result, error)
+--   where
+    
