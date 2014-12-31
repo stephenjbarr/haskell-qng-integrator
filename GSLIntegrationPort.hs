@@ -299,52 +299,67 @@ integration_qk n xgk wg wgk fv1 fv2 f a b = gsk
     abs_half_length = abs (half_length)
     f_center        = f center
 
-    nd              = fromIntegral n
-
-    idx             = round $ (nd / 2.0) - 1      :: Int
+    -- NOTE: when idx is used, it is only when 
+    nd              = fromIntegral n :: Double
+    idx             = round $ (nd / 2.0) - 1.0  
     jmax_1          = (nd - 1.0) / 2.0
     jmax_2          = nd / 2.0
 
-    jvec_1 = takeWhile ( < jmax_1) [0..] :: [Int]
-    jvec_2 = takeWhile ( < jmax_2) [0..] :: [Int]
-    
-    jtw_vec  = map (\j -> j * 2 + 1) jvec_1
-    jtwm1_vec = map (\j -> j * 2) jvec_2
+    -- jvec_1 = takeWhile ( < jmax_1) [0..] :: [Int]
+    -- jvec_2 = takeWhile ( < jmax_2) [0..] :: [Int]
 
+    jvec_1     = takeWhile ( <= (floor jmax_1)) [0..] :: [Int]
+    jvec_2     = takeWhile ( <= (floor jmax_2)) [0..] :: [Int]
+    jtw_vec    = map (\j -> j * 2 + 1) jvec_1
+    jtwm1_vec  = map (\j -> j * 2)     jvec_2
 
-    -- 
     abcissa_j1 = map (\i -> half_length * (xgk !! i )) jtw_vec
-    abcissa_j2 = map (\i -> half_length * (xgk !! i )) jwm_vec
-    fv1_j1    =  map (\x -> f (center - x)) abcissa_j1
-    fv2_j1    =  map (\x -> f (center + x)) abcissa_j1
-    fv1_j2    =  map (\x -> f (center - x)) abcissa_j2
-    fv2_j2    =  map (\x -> f (center + x)) abcissa_j2
-    
-    fsum_j1   = zip (+) fv1_j1 fv2_j1
-    fsum_j2   = zip (+) fv1_j2 fv2_j2
+    abcissa_j2 = map (\i -> half_length * (xgk !! i )) jtwm1_vec
+    fv1_j1     = map (\x -> f (center - x)) abcissa_j1
+    fv2_j1     = map (\x -> f (center + x)) abcissa_j1
+    fv1_j2     = map (\x -> f (center - x)) abcissa_j2
+    fv2_j2     = map (\x -> f (center + x)) abcissa_j2    
+    fsum_j1    = zipWith (+) fv1_j1 fv2_j1
+    fsum_j2    = zipWith (+) fv1_j2 fv2_j2
 
+    -- Gauss result
     result_gauss_n  = if (mod n 2) == 0 then (f_center * (wg !! idx)) else 0.0
     result_gauss_j1 = dotprod (map (wg !! ) jvec_1) fsum_j1
     result_gauss    = result_gauss_n + result_gauss_j1
 
+    -- Konrod result
     konrod_fc = f_center * (wgk !! (n-1))
-    konrod_j1 = dotprod (map (wgk !!) jtw_vec) fsum_j1
+    konrod_j1 = dotprod (map (wgk !!) jtw_vec)   fsum_j1
     konrod_j2 = dotprod (map (wgk !!) jtwm1_vec) fsum_j2
     konrod    = konrod_fc + konrod_j1 + konrod_j2
     result_konrod = konrod * half_length
 
-    abs_fc = abs result_konrod_fc
-    abs_j1 = dotprod (map (wgk !!) jtw_vec)  (abssum fv1_j1 fv2_j1)
-    abs_j2 = dotprod (map (wgk !!) jtwm_vec) (abssum fv1_j2 fv2_j2)
+    -- Abs Result
+    abs_fc = abs konrod_fc
+    abs_j1 = dotprod (map (wgk !!) jtw_vec)   (abssum fv1_j1 fv2_j1)
+    abs_j2 = dotprod (map (wgk !!) jtwm1_vec) (abssum fv1_j2 fv2_j2)
     result_abs    = abs_half_length * (abs_fc + abs_j1 + abs_j2)
     
+    -- Asc result
+    fv1_abs_demean = map abs $ map (flip (-) center) $ weave fv1_j2 fv1_j1
+    fv2_abs_demean = map abs $ map (flip (-) center) $ weave fv2_j2 fv2_j1
+    mean       = 0.5 * result_konrod
+    asc_fc     = (wgk !! (n-1)) * (abs (f_center - mean))
+    asc_1      = dotprod (take (n - 2) wgk) $ zipWith (+) fv1_abs_demean fv2_abs_demean
+    result_asc = abs_half_length * (asc_fc + asc_1)
 
-    -- need to figure out the indexing to get asc right
-    mean   = 0.5 * result_konrod
-    asc_fc = (wgk !! (n-1)) * (abs (fcenter - mean))
-    jn1    = [0..(n-2)]
+    -- Abs err
+    err    = (result_konrod - result_gauss) * half_length
+    abserr = rescale_error err result_abs result_asc
+
+    -- Construct error
+    gsk    = GKStruct result_konrod abserr result_abs result_asc
     
 
+weave :: [a] -> [a] -> [a]
+weave x []          = x
+weave [] y          = y
+weave (x:xs) (y:ys) = x:y:(weave xs ys)
 
 abssum :: [Double] -> [Double] -> [Double]
 abssum xlist ylist = zipWith (\x y -> (abs x) + (abs y)) xlist ylist
