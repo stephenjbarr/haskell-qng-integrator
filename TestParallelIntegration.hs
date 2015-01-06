@@ -5,6 +5,7 @@ import GSLIntegrationPort
 import Data.List
 import qualified Numeric.GSL.Integration as GSL
 import Criterion.Main
+import qualified Numeric.Integration.TanhSinh as TS  
   
 parMapChunk :: (Eq b, NFData b) => Int -> (a -> b) -> [a] -> Par [b]
 parMapChunk n f xs = fmap concat $ parMap (map f) (chunk n xs)
@@ -15,7 +16,8 @@ chunk n xs = as : chunk n bs where (as,bs) = splitAt n xs
 
 ncores = 12
 
-quad_finite = GSL.integrateQNG   1E-6
+test_tol = 1E-6
+quad_finite = GSL.integrateQNG test_tol
 
 cdiv q d = ceiling $ (fromIntegral q) / (fromIntegral d)
 
@@ -30,6 +32,9 @@ normpdf x mu sigma = y  * myexp where
 stdnorm :: Double -> Double
 stdnorm x = normpdf x 0.0 1.0
 
+-- provide an integrator from trap
+trapInt :: (Double -> Double) -> Double -> Double -> Double
+trapInt f a b = TS.result $  TS.absolute test_tol $  TS.trap f a b
 
 
 -- linspace :: (Num a, Integral b)  => a  -> a -> b -> [a]
@@ -65,6 +70,12 @@ sequential_test_gsl n = avg intlist
     intf (a,b)  = fst $ quad_finite stdnorm a b
     intlist     = map intf (lb_ub_list n)
 
+sequential_test_trap :: Int -> Double
+sequential_test_trap n = avg intlist
+  where
+    intf (a,b)  = trapInt stdnorm a b
+    intlist     = map intf (lb_ub_list n)
+
 
 parallel_test_gsl :: Int -> Double
 parallel_test_gsl n = avg intlist
@@ -96,6 +107,22 @@ parallel_test_sjb_chunk n = avg intlist
 
 
 
+parallel_test_trap :: Int -> Double
+parallel_test_trap n = avg intlist
+  where
+    intf (a,b)  = trapInt stdnorm a b
+    intlist     = runPar $  parMap intf (lb_ub_list n)
+
+parallel_test_trap_chunk :: Int -> Double
+parallel_test_trap_chunk n = avg intlist
+  where
+    chunk_size  = cdiv n ncores
+    intf (a,b)  = trapInt stdnorm a b
+    intlist     = runPar $  parMapChunk chunk_size intf (lb_ub_list n)
+
+
+
+
 main = defaultMain [
 
       bgroup "sequential_sjb" [ bench "10"    $ whnf sequential_test_sjb 10
@@ -112,6 +139,14 @@ main = defaultMain [
                               ]
       ,
 
+      bgroup "sequential_trap" [ bench "10"    $ whnf sequential_test_trap 10     
+                              , bench "100"   $ whnf sequential_test_trap 100   
+                              , bench "1000"  $ whnf sequential_test_trap 1000 
+                              , bench "10000" $ whnf sequential_test_trap 10000
+                              ]
+      ,
+
+
       bgroup "parallel_sjb" [ bench "10"    $ whnf parallel_test_sjb (ncores * 10    )
                             , bench "100"   $ whnf parallel_test_sjb (ncores * 100   )
                             , bench "1000"  $ whnf parallel_test_sjb (ncores * 1000  )
@@ -127,6 +162,16 @@ main = defaultMain [
 
       ,
 
+      bgroup "parallel_trap" [ bench "10"    $ whnf parallel_test_trap   (ncores * 10    ) 
+                            , bench "100"   $ whnf parallel_test_trap (ncores * 100   )
+                            , bench "1000"  $ whnf parallel_test_trap (ncores * 1000  )
+                            , bench "10000" $ whnf parallel_test_trap (ncores * 10000 )
+                            ]
+
+      ,
+
+
+
       bgroup "parallel_sjb_chunk" [ bench "10"    $ whnf parallel_test_sjb_chunk (ncores * 10    )
                                   , bench "100"   $ whnf parallel_test_sjb_chunk (ncores * 100   )
                                   , bench "1000"  $ whnf parallel_test_sjb_chunk (ncores * 1000  )
@@ -139,6 +184,15 @@ main = defaultMain [
                                   , bench "1000"  $ whnf parallel_test_gsl_chunk (ncores * 1000  )
                                   , bench "10000" $ whnf parallel_test_gsl_chunk (ncores * 10000 )
                                   ]
+
+      ,
+
+      bgroup "parallel_trap_chunk" [ bench "10"    $ whnf parallel_test_trap_chunk   (ncores * 10    ) 
+                                  , bench "100"   $ whnf parallel_test_trap_chunk (ncores * 100   )
+                                  , bench "1000"  $ whnf parallel_test_trap_chunk (ncores * 1000  )
+                                  , bench "10000" $ whnf parallel_test_trap_chunk (ncores * 10000 )
+                                  ]
+
 
 
       ]

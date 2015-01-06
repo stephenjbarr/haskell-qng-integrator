@@ -281,6 +281,7 @@ data GKStruct = GKStruct {
  , resasc :: Double  
 }
 
+-- this is the inner integrator
 integration_qk :: 
      Int        -- ^ n 
  ->  [Double]   -- ^ xgk 

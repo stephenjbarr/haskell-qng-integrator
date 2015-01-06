@@ -1,7 +1,8 @@
 
 
+* QNG
 
-* Algorithm summary
+** Algorithm summary
 ** Terms
    1. Integrand \( f \)
    2. LB \( a \), UB \( b \)
@@ -17,20 +18,31 @@
    2. 
 
 
-* Summary 2
+** Summary 2
 
   1. At each iteration, we use =n= points for evaluation, and =2n+1= points for error.
   2. At the next iteration, use the =2n+1= points for error, and =2(2n+1) + 1= points for error
   3. Construct function evaluations for all center \( \pm \) =x1= and =x2= abcissa
 
 
-* =res10=
+** =res10=
   1. Start with 0
   2. res10 += w10 * (fval1_k + fval2_k)
 
-* =res21=
+** =res21=
   
 
 
   1. =fv1= function evaluations at center + abcissa
   2. =fv2= function evaluations at center - abcissa
+
+
+* QAGS
+  - Note taken on [2014-12-31 Wed 20:42] \\
+    Going to postpone this, as trap seems to be doing what is needed.
+
+  1. Initialize - [[file:~/Projects/gsl/gsl-static/gsl-1.16/integration/initialise.c]]
+  2. Result - [[file:~/Projects/gsl/gsl-static/gsl-1.16/integration/set_initial.c]]
+     size, result, error. Calculate =abserr0=, =tolerance=, =resasc0=, 
+  3. Check for either convergense, roundoff error, or no convergence
+  4. 
